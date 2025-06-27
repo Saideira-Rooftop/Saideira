@@ -68,7 +68,7 @@
       border-radius: 6px;
       font-size: 16px;
       cursor: pointer;
-      margin-top: 20px;
+      margin: 20px 10px 0 10px;
     }
 
     .btn:hover {
@@ -163,6 +163,10 @@
       width: 100%;
       box-sizing: border-box;
     }
+
+    .pagination {
+      margin: 20px 0;
+    }
   </style>
 </head>
 <body>
@@ -183,6 +187,11 @@
 
 <div class="drink-grid" id="grid"></div>
 
+<div class="pagination">
+  <button class="btn" onclick="trocarPagina(-1)">⬅️ Anterior</button>
+  <button class="btn" onclick="trocarPagina(1)">Próxima ➡️</button>
+</div>
+
 <button class="btn" onclick="abrirModal()">Confirmar Compra</button>
 
 <footer>
@@ -201,46 +210,91 @@
 </div>
 
 <script>
-  const drinks = [...Array(100)].map((_, i) => `Drink #${i + 1}`);
+  const BASE_ROW_TOKEN = "Token rQDQRwPZiBCjzrcKEIw3jTK2fkYjMlDL";
+  const DRINKS_TABLE_ID = 588083;
+  const BILHETES_TABLE_ID = 588042;
+  const API_BASE = "https://api.baserow.io/api/database/rows/table/";
+
   const grid = document.getElementById("grid");
   const selected = new Set();
+  let allDrinks = [];
+  let paginaAtual = 1;
+  const itensPorPagina = 60;
 
-  const BASE_ROW_API_URL = "https://api.baserow.io/api/database/rows/table/588042/?user_field_names=true";
-  const BASE_ROW_TOKEN = "Token rQDQRwPZiBCjzrcKEIw3jTK2fkYjMlDL";
+  async function fetchTodosDrinks(tableId) {
+    let todos = [];
+    let offset = 0;
+    const limit = 100;
+    let total = null;
 
-  drinks.forEach((name) => {
-    const div = document.createElement("div");
-    div.className = "drink";
-    div.innerText = name;
-    div.dataset.name = name;
-    div.onclick = () => {
-      if (div.classList.contains("inactive")) return;
-      div.classList.toggle("selected");
-      if (selected.has(name)) {
-        selected.delete(name);
+    while (true) {
+      const res = await fetch(`${API_BASE}${tableId}/?user_field_names=true&limit=${limit}&offset=${offset}`, {
+        headers: { Authorization: BASE_ROW_TOKEN }
+      });
+      const data = await res.json();
+
+      if (total === null) total = data.count; // Pega o total de registros na 1ª requisição
+      todos.push(...data.results);
+
+      offset += limit;
+      if (todos.length >= total) break; // ✅ Encerra quando já trouxe tudo
+    }
+
+    return todos;
+  }
+
+  async function carregarDrinks() {
+    const [drinksData, bilhetesData] = await Promise.all([
+      fetchTodosDrinks(DRINKS_TABLE_ID),
+      fetchTodosDrinks(BILHETES_TABLE_ID)
+    ]);
+
+    const reservados = new Set(bilhetesData.map(b => b.drink_name));
+    allDrinks = drinksData.map(d => ({ nome: d.drink_name, inativo: reservados.has(d.drink_name) }));
+    renderizarDrinks();
+  }
+
+  function renderizarDrinks() {
+    grid.innerHTML = "";
+    const inicio = (paginaAtual - 1) * itensPorPagina;
+    const pagina = allDrinks.slice(inicio, inicio + itensPorPagina);
+
+    pagina.forEach(({ nome, inativo }) => {
+      const div = document.createElement("div");
+      div.className = "drink";
+      div.innerText = nome;
+      div.dataset.name = nome;
+      if (inativo) {
+        div.classList.add("inactive");
       } else {
-        selected.add(name);
+        div.onclick = () => {
+          div.classList.toggle("selected");
+          if (selected.has(nome)) selected.delete(nome);
+          else selected.add(nome);
+        };
       }
-    };
-    grid.appendChild(div);
-  });
+      grid.appendChild(div);
+    });
+  }
+
+  function trocarPagina(direcao) {
+    const totalPaginas = Math.ceil(allDrinks.length / itensPorPagina);
+    paginaAtual = Math.min(Math.max(1, paginaAtual + direcao), totalPaginas);
+    renderizarDrinks();
+  }
 
   function abrirModal() {
     const nome = document.getElementById("nome").value.trim();
     const numero = document.getElementById("numero").value.trim();
     const email = document.getElementById("email").value.trim();
-
-    if (!nome || !numero || !email) return alert("Por favor, preencha todas as informações de contato.");
+    if (!nome || !numero || !email) return alert("Preencha todas as informações.");
     if (selected.size === 0) return alert("Escolha pelo menos um drink.");
 
-    const valorTotal = selected.size * 30;
-    document.getElementById("resumoCompra").innerHTML = `Você escolheu <strong>${selected.size}</strong> cartela(s).<br>Total a pagar: <strong>R$ ${valorTotal.toFixed(2)}</strong><br>Após o pagamento, envie o comprovante pelo WhatsApp.`;
-
-    const mensagemZap = `Olá, eu comprei as seguintes cartelas: ${Array.from(selected).join(", ")} e abaixo segue o comprovante PIX.`;
-    const numeroWhats = "5599999999999";
-    const linkZap = `https://wa.me/${numeroWhats}?text=${encodeURIComponent(mensagemZap)}`;
+    const total = selected.size * 30;
+    document.getElementById("resumoCompra").innerHTML = `Você escolheu <strong>${selected.size}</strong> cartela(s).<br>Total: <strong>R$ ${total.toFixed(2)}</strong><br>Envie o comprovante via WhatsApp.`;
+    const msg = `Olá, eu comprei as seguintes cartelas: ${Array.from(selected).join(", ")} e abaixo segue o comprovante PIX.`;
+    const linkZap = `https://wa.me/5599999999999?text=${encodeURIComponent(msg)}`;
     document.getElementById("zaplink").href = linkZap;
-
     document.getElementById("modal").style.display = "flex";
   }
 
@@ -250,40 +304,31 @@
     const email = document.getElementById("email").value.trim();
 
     selected.forEach(async (drink) => {
-      await fetch(BASE_ROW_API_URL, {
+      await fetch(`${API_BASE}${BILHETES_TABLE_ID}/?user_field_names=true`, {
         method: "POST",
         headers: {
-          "Authorization": BASE_ROW_TOKEN,
+          Authorization: BASE_ROW_TOKEN,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          drink_name: drink,
-          comprador: nome,
-          numero: numero,
-          email: email,
-          status: "reservado"
-        })
+        body: JSON.stringify({ drink_name: drink, comprador: nome, numero, email, status: "reservado" })
       });
-
-      const el = [...document.querySelectorAll(".drink")].find(d => d.dataset.name === drink);
-      if (el) {
-        el.classList.remove("selected");
-        el.classList.add("inactive");
-        el.onclick = null;
-      }
     });
 
     selected.clear();
+    carregarDrinks();
+    fecharModal();
   }
 
   function cancelarReserva(e) {
     e.preventDefault();
-    document.getElementById("modal").style.display = "none";
+    fecharModal();
   }
 
   function fecharModal() {
     document.getElementById("modal").style.display = "none";
   }
+
+  carregarDrinks();
 </script>
 </body>
 </html>
