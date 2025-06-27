@@ -392,9 +392,7 @@
   }
 
   function gerarPayloadPix({chave, nome, cidade, valor, txid}) {
-    function format(val) {
-      return String(val).length < 10 ? val.padStart(10, '0') : val;
-    }
+
 
     const chavePix = `0014BR.GOV.BCB.PIX01${chave.length}${chave}`;
     const merchantAccountInfo = `26${chavePix.length}${chavePix}`;
