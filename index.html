@@ -121,7 +121,7 @@
       color: #000;
     }
 
-    .zap-link {
+    .zap-link, .cancel-btn {
       display: inline-block;
       margin-top: 15px;
       background: #25d366;
@@ -131,8 +131,17 @@
       text-decoration: none;
     }
 
+    .cancel-btn {
+      background: #dc3545;
+      margin-left: 10px;
+    }
+
     .zap-link:hover {
       background: #1ebc57;
+    }
+
+    .cancel-btn:hover {
+      background: #c82333;
     }
 
     .input-group {
@@ -166,13 +175,15 @@
 <div class="input-group" style="max-width: 400px;">
   <label>Nome:</label>
   <input type="text" id="nome" placeholder="Seu nome" required>
-  <label>Número para contato:</label>
+  <label>Email:</label>
+  <input type="email" id="email" placeholder="Seu e-mail" required>
+  <label>WhatsApp:</label>
   <input type="text" id="numero" placeholder="(DDD) 99999-9999" required>
 </div>
 
 <div class="drink-grid" id="grid"></div>
 
-<button class="btn" onclick="finalizarCompra()">Confirmar Compra</button>
+<button class="btn" onclick="abrirModal()">Confirmar Compra</button>
 
 <footer>
   <p>&copy; 2025 Adega Saideira. Todos os direitos reservados.</p>
@@ -184,12 +195,13 @@
     <h2>Pagamento via PIX</h2>
     <img src="https://via.placeholder.com/200x200.png?text=PIX+QR" alt="QR Code PIX">
     <p id="resumoCompra"></p>
-    <a id="zaplink" class="zap-link" target="_blank">Enviar Comprovante</a>
+    <a id="zaplink" class="zap-link" target="_blank" onclick="reservarDrinks()">Enviar Comprovante</a>
+    <a class="cancel-btn" href="#" onclick="cancelarReserva(event)">Cancelar</a>
   </div>
 </div>
 
 <script>
-  const drinks = [...Array(100)].map((_, i) => `Drink #${i + 1}`); // Substitua pela lista real
+  const drinks = [...Array(100)].map((_, i) => `Drink #${i + 1}`);
   const grid = document.getElementById("grid");
   const selected = new Set();
 
@@ -213,25 +225,31 @@
     grid.appendChild(div);
   });
 
-  async function finalizarCompra() {
+  function abrirModal() {
     const nome = document.getElementById("nome").value.trim();
     const numero = document.getElementById("numero").value.trim();
-    if (!nome || !numero) return alert("Por favor, preencha seu nome e número de contato.");
+    const email = document.getElementById("email").value.trim();
 
+    if (!nome || !numero || !email) return alert("Por favor, preencha todas as informações de contato.");
     if (selected.size === 0) return alert("Escolha pelo menos um drink.");
 
-    const drinksSelecionados = Array.from(selected);
-    const valorTotal = drinksSelecionados.length * 30;
-    document.getElementById("resumoCompra").innerHTML = `Você escolheu <strong>${drinksSelecionados.length}</strong> cartela(s).<br>Total a pagar: <strong>R$ ${valorTotal.toFixed(2)}</strong><br>Após o pagamento, envie o comprovante pelo WhatsApp.`;
+    const valorTotal = selected.size * 30;
+    document.getElementById("resumoCompra").innerHTML = `Você escolheu <strong>${selected.size}</strong> cartela(s).<br>Total a pagar: <strong>R$ ${valorTotal.toFixed(2)}</strong><br>Após o pagamento, envie o comprovante pelo WhatsApp.`;
 
-    const mensagemZap = `Olá, eu comprei as seguintes cartelas: ${drinksSelecionados.join(", ")} e abaixo segue o comprovante PIX.`;
+    const mensagemZap = `Olá, eu comprei as seguintes cartelas: ${Array.from(selected).join(", ")} e abaixo segue o comprovante PIX.`;
     const numeroWhats = "5599999999999";
     const linkZap = `https://wa.me/${numeroWhats}?text=${encodeURIComponent(mensagemZap)}`;
     document.getElementById("zaplink").href = linkZap;
-    document.getElementById("modal").style.display = "flex";
 
-    // Enviar para Baserow
-    drinksSelecionados.forEach(async (drink) => {
+    document.getElementById("modal").style.display = "flex";
+  }
+
+  function reservarDrinks() {
+    const nome = document.getElementById("nome").value.trim();
+    const numero = document.getElementById("numero").value.trim();
+    const email = document.getElementById("email").value.trim();
+
+    selected.forEach(async (drink) => {
       await fetch(BASE_ROW_API_URL, {
         method: "POST",
         headers: {
@@ -242,6 +260,7 @@
           drink_name: drink,
           comprador: nome,
           numero: numero,
+          email: email,
           status: "reservado"
         })
       });
@@ -255,6 +274,11 @@
     });
 
     selected.clear();
+  }
+
+  function cancelarReserva(e) {
+    e.preventDefault();
+    document.getElementById("modal").style.display = "none";
   }
 
   function fecharModal() {
