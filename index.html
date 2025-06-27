@@ -254,7 +254,8 @@
   <div class="modal-content">
     <span class="close-btn" onclick="fecharModal()">&times;</span>
     <h2>Pagamento via PIX</h2>
-    <img src="img/qrcode.png" alt="QR Code PIX">
+    <p><strong>Chave Pix:</strong></p>
+    <textarea id="copiaecola" style="width: 100%; padding: 10px; font-size: 14px;" readonly>41629125806</textarea>
     <p id="resumoCompra"></p>
     <a id="zaplink" class="zap-link" target="_blank" onclick="reservarDrinks()">Enviar Comprovante</a>
     <a class="cancel-btn" href="#" onclick="cancelarReserva(event)">Cancelar</a>
@@ -262,6 +263,7 @@
 </div>
 
 <script>
+
   const BASE_ROW_TOKEN = "Token rQDQRwPZiBCjzrcKEIw3jTK2fkYjMlDL";
   const DRINKS_TABLE_ID = 588083;
   const BILHETES_TABLE_ID = 588042;
@@ -379,12 +381,71 @@
     document.getElementById("resumoCompra").innerHTML =
       `Você escolheu <strong>${drinksEscolhidos.length}</strong> cartela(s):<br>` +
       `<ul style="text-align: left; margin: 10px 0;">${drinksEscolhidos.map(d => `<li>${d}</li>`).join('')}</ul>` +
-      `Total: <strong>R$ ${total.toFixed(2)}</strong><br>Envie o comprovante via WhatsApp.`;
+      `Total: <strong>R$ ${total.toFixed(2)}</strong><br>Para garantir a confirmação encaminhe o comprovante via WhatsApp.`;
 
     const msg = `Olá, eu comprei as seguintes cartelas: ${drinksEscolhidos.join(", ")} e abaixo segue o comprovante PIX.`;
     const linkZap = `https://wa.me/5599999999999?text=${encodeURIComponent(msg)}`;
     document.getElementById("zaplink").href = linkZap;
     document.getElementById("modal").style.display = "flex";
+
+
+  }
+
+  function gerarPayloadPix({chave, nome, cidade, valor, txid}) {
+    function format(val) {
+      return String(val).length < 10 ? val.padStart(10, '0') : val;
+    }
+
+    const chavePix = `0014BR.GOV.BCB.PIX01${chave.length}${chave}`;
+    const merchantAccountInfo = `26${chavePix.length}${chavePix}`;
+    const merchantCategoryCode = "52040000";
+    const transactionCurrency = "5303986";
+    const transactionAmount = `54${valor.toFixed(2).length}${valor.toFixed(2)}`;
+    const countryCode = "5802BR";
+    const merchantName = `59${nome.length}${nome}`;
+    const merchantCity = `60${cidade.length}${cidade}`;
+    const additionalDataField = `62100506${txid}`;
+    const payloadSemCRC = `000201${merchantAccountInfo}${merchantCategoryCode}${transactionCurrency}${transactionAmount}${countryCode}${merchantName}${merchantCity}${additionalDataField}`;
+
+    // CRC16 calculado corretamente
+    function crc16(str) {
+      let crc = 0xFFFF;
+      for (let i = 0; i < str.length; i++) {
+        crc ^= str.charCodeAt(i) << 8;
+        for (let j = 0; j < 8; j++) {
+          if (crc & 0x8000) {
+            crc = (crc << 1) ^ 0x1021;
+          } else {
+            crc <<= 1;
+          }
+          crc &= 0xFFFF;
+        }
+      }
+      return crc.toString(16).toUpperCase().padStart(4, '0');
+    }
+
+    const fullPayload = payloadSemCRC + "6304" + crc16(payloadSemCRC);
+    return fullPayload;
+  }
+
+  function gerarQRCodePix(valorTotal) {
+    const payload = gerarPayloadPix({
+      chave: "41629125806",
+      nome: "ADEGA SAIDEIRA",
+      cidade: "SAO PAULO",
+      valor: valorTotal,
+      txid: "SAIDEIRA01"
+    });
+
+    // Gera QR Code na tela
+    QRCode.toCanvas(document.getElementById("qrcodepix"), payload, {
+      width: 200
+    }, function (error) {
+      if (error) console.error(error);
+    });
+
+    // Mostra Copia e Cola
+    document.getElementById("copiaecola").value = payload;
   }
 
   function reservarDrinks() {
@@ -419,5 +480,6 @@
 
   carregarDrinks();
 </script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
 </body>
 </html>
