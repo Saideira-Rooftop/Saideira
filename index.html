@@ -261,21 +261,19 @@
 
   async function fetchTodosDrinks(tableId) {
     let todos = [];
-    let offset = 0;
-    const limit = 100;
-    let total = null;
+    let page = 1;
+    const size = 100;
 
     while (true) {
-      const res = await fetch(`${API_BASE}${tableId}/?user_field_names=true&limit=${limit}&offset=${offset}`, {
+      const res = await fetch(`${API_BASE}${tableId}/?user_field_names=true&page=${page}&size=${size}`, {
         headers: {Authorization: BASE_ROW_TOKEN}
       });
       const data = await res.json();
 
-      if (total === null) total = data.count; // Pega o total de registros na 1ª requisição
       todos.push(...data.results);
 
-      offset += limit;
-      if (todos.length >= total) break; // ✅ Encerra quando já trouxe tudo
+      if (data.results.length < size) break; // Última página
+      page++;
     }
 
     return todos;
@@ -289,6 +287,7 @@
 
     const reservados = new Set(bilhetesData.map(b => b.drink_name));
     allDrinks = drinksData.map(d => ({nome: d.drink_name, inativo: reservados.has(d.drink_name)}));
+    console.log(allDrinks)
     renderizarDrinks();
   }
 
