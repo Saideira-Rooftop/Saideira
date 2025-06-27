@@ -103,8 +103,6 @@
       position: relative;
     }
 
-    /
-    /
     .modal-content img {
       width: 200px;
       margin-bottom: 20px;
@@ -173,18 +171,9 @@
       outline: none;
     }
 
-    .input-group .icon {
-      margin-right: 8px;
-    }
-
     .input-row {
       display: flex;
       align-items: center;
-    }
-
-    .input-group input {
-      font-size: 14px;
-      padding: 8px;
     }
 
     @media (max-width: 480px) {
@@ -199,19 +188,42 @@
       .pagination {
         margin: 20px 0;
       }
+    }
+
+    .form-container {
+      padding: 15px;
+      width: 100%;
+      max-width: 900px;
+    }
+
+    .input-group {
+      margin: 10px 0;
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+    }
+
+    .input-group input {
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 16px;
+      width: 100%;
+      box-sizing: border-box;
+      transition: border-color 0.2s ease;
+    }
   </style>
 </head>
 <body>
 <header>
+  <h1>🍹 Rifa - Saideira & JVBFRESH</h1>
   <img src="img/logo.png" alt="Logo Saideira" style="max-width: 220px; margin-bottom: 10px;"/>
-  <h1>🍹 Rifa - Saideira</h1>
-  <p>Escolha seus drinks favoritos e concorra a brindes incríveis!</p>
 </header>
 
 <div class="form-container">
   <div class="input-group">
     <label for="nome">👤 Nome:</label>
-    <input type="text" id="nome" placeholder="Seu nome" required>
+    <input type="text" id="nome" placeholder="Seu nome" maxlength="60" required>
   </div>
   <div class="input-group">
     <label for="email">📧 Email:</label>
@@ -219,9 +231,11 @@
   </div>
   <div class="input-group">
     <label for="numero">📱 WhatsApp:</label>
-    <input type="text" id="numero" placeholder="(DDD) 99999-9999" required>
+    <input type="text" id="numero" placeholder="(DDD) 99999-9999" maxlength="16" required>
   </div>
 </div>
+<p>Escolha seus drinks favoritos e concorra a brindes incríveis!</p>
+
 
 <div class="drink-grid" id="grid"></div>
 
@@ -240,7 +254,7 @@
   <div class="modal-content">
     <span class="close-btn" onclick="fecharModal()">&times;</span>
     <h2>Pagamento via PIX</h2>
-    <img src="https://via.placeholder.com/200x200.png?text=PIX+QR" alt="QR Code PIX">
+    <img src="img/qrcode.png" alt="QR Code PIX">
     <p id="resumoCompra"></p>
     <a id="zaplink" class="zap-link" target="_blank" onclick="reservarDrinks()">Enviar Comprovante</a>
     <a class="cancel-btn" href="#" onclick="cancelarReserva(event)">Cancelar</a>
@@ -269,13 +283,10 @@
         headers: {Authorization: BASE_ROW_TOKEN}
       });
       const data = await res.json();
-
       todos.push(...data.results);
-
-      if (data.results.length < size) break; // Última página
+      if (data.results.length < size) break;
       page++;
     }
-
     return todos;
   }
 
@@ -286,8 +297,17 @@
     ]);
 
     const reservados = new Set(bilhetesData.map(b => b.drink_name));
-    allDrinks = drinksData.map(d => ({nome: d.drink_name, inativo: reservados.has(d.drink_name)}));
-    console.log(allDrinks)
+    const nomesUnicos = new Set();
+    allDrinks = [];
+
+    drinksData.forEach(d => {
+      if (d.drink_name && !nomesUnicos.has(d.drink_name)) {
+        nomesUnicos.add(d.drink_name);
+        allDrinks.push({nome: d.drink_name, inativo: reservados.has(d.drink_name)});
+      }
+    });
+
+    allDrinks.sort((a, b) => a.nome.localeCompare(b.nome));
     renderizarDrinks();
   }
 
@@ -301,15 +321,22 @@
       div.className = "drink";
       div.innerText = nome;
       div.dataset.name = nome;
+
       if (inativo) {
         div.classList.add("inactive");
       } else {
+        if (selected.has(nome)) div.classList.add("selected");
         div.onclick = () => {
-          div.classList.toggle("selected");
-          if (selected.has(nome)) selected.delete(nome);
-          else selected.add(nome);
+          if (selected.has(nome)) {
+            selected.delete(nome);
+            div.classList.remove("selected");
+          } else {
+            selected.add(nome);
+            div.classList.add("selected");
+          }
         };
       }
+
       grid.appendChild(div);
     });
   }
@@ -324,12 +351,37 @@
     const nome = document.getElementById("nome").value.trim();
     const numero = document.getElementById("numero").value.trim();
     const email = document.getElementById("email").value.trim();
-    if (!nome || !numero || !email) return alert("Preencha todas as informações.");
-    if (selected.size === 0) return alert("Escolha pelo menos um drink.");
 
-    const total = selected.size * 30;
-    document.getElementById("resumoCompra").innerHTML = `Você escolheu <strong>${selected.size}</strong> cartela(s).<br>Total: <strong>R$ ${total.toFixed(2)}</strong><br>Envie o comprovante via WhatsApp.`;
-    const msg = `Olá, eu comprei as seguintes cartelas: ${Array.from(selected).join(", ")} e abaixo segue o comprovante PIX.`;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const telRegex = /^\(?\d{2}\)?\s?\d{4,5}-?\d{4}$/;
+
+    if (!nome || !numero || !email) {
+      alert("Preencha todas as informações.");
+      return;
+    }
+    if (!emailRegex.test(email)) {
+      alert("E-mail inválido.");
+      return;
+    }
+    if (!telRegex.test(numero)) {
+      alert("Número de WhatsApp inválido.");
+      return;
+    }
+
+    if (selected.size === 0) {
+      alert("Escolha pelo menos um drink.");
+      return;
+    }
+
+    const drinksEscolhidos = Array.from(selected);
+    const total = drinksEscolhidos.length * 30;
+
+    document.getElementById("resumoCompra").innerHTML =
+      `Você escolheu <strong>${drinksEscolhidos.length}</strong> cartela(s):<br>` +
+      `<ul style="text-align: left; margin: 10px 0;">${drinksEscolhidos.map(d => `<li>${d}</li>`).join('')}</ul>` +
+      `Total: <strong>R$ ${total.toFixed(2)}</strong><br>Envie o comprovante via WhatsApp.`;
+
+    const msg = `Olá, eu comprei as seguintes cartelas: ${drinksEscolhidos.join(", ")} e abaixo segue o comprovante PIX.`;
     const linkZap = `https://wa.me/5599999999999?text=${encodeURIComponent(msg)}`;
     document.getElementById("zaplink").href = linkZap;
     document.getElementById("modal").style.display = "flex";
