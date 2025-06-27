@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Adega Saideira - Rifa dos Drinks</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f2f5;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      color: #0d6efd;
+    }
+
+    .drink-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 15px;
+      width: 100%;
+      max-width: 900px;
+    }
+
+    .drink {
+      background: white;
+      padding: 15px;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+
+    .drink:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    }
+
+    .drink.selected {
+      background-color: #cfe2ff;
+      border: 2px solid #0d6efd;
+    }
+
+    .btn {
+      background-color: #0d6efd;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+
+    .btn:hover {
+      background-color: #084298;
+    }
+
+    footer {
+      margin-top: 40px;
+      color: #555;
+    }
+
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      max-width: 400px;
+      text-align: center;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      position: relative;
+    }
+
+    .modal-content img {
+      width: 200px;
+      margin-bottom: 20px;
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      font-size: 20px;
+      cursor: pointer;
+      color: #aaa;
+    }
+
+    .close-btn:hover {
+      color: #000;
+    }
+
+    .zap-link {
+      display: inline-block;
+      margin-top: 15px;
+      background: #25d366;
+      color: white;
+      padding: 10px 15px;
+      border-radius: 6px;
+      text-decoration: none;
+    }
+
+    .zap-link:hover {
+      background: #1ebc57;
+    }
+  </style>
+</head>
+<body>
+<header>
+  <h1>🍹 Rifa dos Drinks - Adega Saideira</h1>
+  <p>Escolha seus drinks favoritos e concorra a brindes incríveis!</p>
+  <img src="img/logo.png" alt="Logo Saideira"
+       style="max-width: 220px; margin-bottom: 10px;"/>
+</header>
+
+<div class="drink-grid" id="grid"></div>
+
+<button class="btn" onclick="finalizarCompra()">Confirmar Compra</button>
+
+<footer>
+  <p>&copy; 2025 Erick Almeida. Todos os direitos reservados.</p>
+</footer>
+
+<div id="modal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <span class="close-btn" onclick="fecharModal()">&times;</span>
+    <h2>Pagamento via PIX</h2>
+    <img src="img/qrcode.png?text=PIX+QR" alt="QR Code PIX">
+    <p style="margin: 10px 0;">Para efetivar sua compra, envie o comprovante para o número abaixo via WhatsApp:</p>
+    <a id="zaplink" class="zap-link" target="_blank">Enviar Comprovante</a>
+  </div>
+</div>
+
+<script>
+  const drinks = [
+    "Caipirinha de Morango", "Gin com Limão Siciliano", "Mojito de Maracujá",
+    "Margarita Azul", "Sex on the Beach", "Piña Colada de Coco",
+    "Moscow Mule com Gengibre", "Cuba Libre Tradicional", "Caipiroska de Kiwi",
+    "Gin Tônica com Hibisco", "Bloody Mary", "Blue Lagoon", "Tequila Sunrise",
+    "Negroni", "Dry Martini", "Spritz de Aperol", "Caipirinha de Abacaxi",
+    "Vodka com Energético", "Whisky com Mel", "Licor de Amarula",
+    "Gin de Melancia", "Cachaça de Banana", "Rum com Coca", "Bacardi Laranja",
+    "Catuaba Selvagem", "Skol Beats Senses", "Skol Beats Secret",
+    "Ice de Limão", "Ice de Morango", "Martini com Azeitona",
+    "Vinho Quente Tradicional", "Quentão com Cravo", "Caipirinha de Limão",
+    "Caipirinha de Uva", "Caipirinha de Tangerina", "Gin com Pepino",
+    "Gin Tropical", "Gin com Pimenta Rosa", "Gin de Frutas Vermelhas",
+    "Vodka com Limão", "Cuba Pêssego", "Margarita de Manga",
+    "Cerveja Artesanal IPA", "Cerveja Pilsen Gelada", "Chopp Escuro",
+    "Chopp Claro", "Drink Sem Álcool de Frutas", "Drink Rosa Neon",
+    "Drink do Amor", "Drink da Ressaca", "Drink da Casa",
+    "Drink Surpresa 1", "Drink Surpresa 2", "Drink Surpresa 3",
+    "Drink Surpresa 4", "Drink Surpresa 5", "Drink Surpresa 6",
+    "Drink do Cliente", "Drink do Dia", "Drink do Mês",
+    "Drink Especial de Verão", "Drink Especial de Inverno",
+    "Drink Premium 1", "Drink Premium 2", "Drink Premium 3",
+    "Shot de Tequila", "Shot de Vodka com Limão",
+    "Shot de Cachaça 51", "Shot de Cachaça Premium",
+    "Shot de Licor de Chocolate", "Shot de Mel e Limão",
+    "Shot de Jägermeister", "Shot Misterioso",
+    "Drink da Noite", "Drink do Feriado",
+    "Drink Natalino", "Drink de Carnaval", "Drink de Festa Junina",
+    "Drink de Halloween", "Drink de Ano Novo",
+    "Caipirinha Explosiva", "Gin da Loucura",
+    "Drink do Rei", "Drink da Rainha", "Drink do Príncipe",
+    "Drink da Madrugada", "Drink Tira-Ressaca",
+    "Drink da Sorte", "Drink da Alegria",
+    "Drink Apaixonado", "Drink Gelado", "Drink com Canudinho Azul",
+    "Drink com Guarda-Chuvinha", "Drink Iluminado",
+    "Drink Selvagem", "Drink dos Deuses", "Drink Infernal",
+    "Drink Tropicaliente", "Drink do Paraíso", "Drink Mágico",
+    "Drink Enigmático", "Drink Dourado", "Drink Azul Bebê",
+    "Drink Puro Suco de Brasil"
+  ];
+
+  const grid = document.getElementById("grid");
+  const selected = new Set();
+
+  drinks.forEach((name) => {
+    const div = document.createElement("div");
+    div.className = "drink";
+    div.innerText = name;
+    div.onclick = () => {
+      if (div.classList.contains("selected")) {
+        div.classList.remove("selected");
+        selected.delete(name);
+      } else {
+        div.classList.add("selected");
+        selected.add(name);
+      }
+    };
+    grid.appendChild(div);
+  });
+
+  function finalizarCompra() {
+    if (selected.size === 0) {
+      alert("Escolha pelo menos um drink antes de continuar!");
+      return;
+    }
+
+    const drinksSelecionados = Array.from(selected).join(", ");
+    const mensagemZap = `Olá, eu comprei as seguintes cartelas: ${Array.from(selected).join(" - ")} e abaixo segue o comprovante PIX.`;
+    const numeroWhats = "5599999999999"; // altere para seu número com DDD
+    const linkZap = `https://wa.me/${numeroWhats}?text=${encodeURIComponent(mensagemZap)}`;
+
+    document.getElementById("zaplink").href = linkZap;
+    document.getElementById("modal").style.display = "flex";
+  }
+
+  function fecharModal() {
+    document.getElementById("modal").style.display = "none";
+  }
+</script>
+</body>
+</html>
