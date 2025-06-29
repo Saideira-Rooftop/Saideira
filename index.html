@@ -255,7 +255,7 @@
     <span class="close-btn" onclick="fecharModal()">&times;</span>
     <h2>Pagamento via PIX</h2>
     <p><strong>Chave Pix:</strong></p>
-    <textarea id="copiaecola" style="width: 100%; padding: 10px; font-size: 14px;" readonly>41629125806</textarea>
+    <textarea id="copiaecola" style="width: 100%; padding: 10px; font-size: 14px;" readonly>11963099554</textarea>
     <p id="resumoCompra"></p>
     <a id="zaplink" class="zap-link" target="_blank" onclick="reservarDrinks()">Enviar Comprovante</a>
     <a class="cancel-btn" href="#" onclick="cancelarReserva(event)">Cancelar</a>
@@ -384,7 +384,7 @@
       `Total: <strong>R$ ${total.toFixed(2)}</strong><br>Para garantir a confirmação encaminhe o comprovante via WhatsApp.`;
 
     const msg = `Olá, eu comprei as seguintes cartelas: ${drinksEscolhidos.join(", ")} e abaixo segue o comprovante PIX.`;
-    const linkZap = `https://wa.me/5511952353224?text=${encodeURIComponent(msg)}`;
+    const linkZap = `https://wa.me/5511963099554?text=${encodeURIComponent(msg)}`;
     document.getElementById("zaplink").href = linkZap;
     document.getElementById("modal").style.display = "flex";
 
@@ -428,7 +428,7 @@
 
   function gerarQRCodePix(valorTotal) {
     const payload = gerarPayloadPix({
-      chave: "41629125806",
+      chave: "11963099554",
       nome: "ADEGA SAIDEIRA",
       cidade: "SAO PAULO",
       valor: valorTotal,
